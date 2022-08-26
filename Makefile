@@ -2,8 +2,8 @@ NAME=sonar-dingtalk-plugin
 BINDIR=bin
 VERSION=$(shell git describe --tags || echo "unknown version")
 BUILDTIME=$(shell date -u)
-GOBUILD=CGO_ENABLED=0 go build -trimpath -ldflags '-X "github.com/xbmlz/sonar-dingtalk-plugin/main.Version=$(VERSION)" \
-		-X "github.com/xbmlz/sonar-dingtalk-plugin/main.BuildTime=$(BUILDTIME)" \
+GOBUILD=CGO_ENABLED=0 go build -trimpath -ldflags '-X "github.com/bapplehaha/sonar-dingtalk-plugin/main.Version=$(VERSION)" \
+		-X "github.com/bapplehaha/sonar-dingtalk-plugin/main.BuildTime=$(BUILDTIME)" \
 		-w -s -buildid='
 
 PLATFORM_LIST = \

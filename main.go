@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"sonar-dingtalk-plugin/content"
 )
 
 // dingtalkHandler
@@ -35,7 +36,8 @@ func dingtalkHandler(w http.ResponseWriter, r *http.Request) {
 		},
 	}
 	// get measures info
-	url := fmt.Sprintf("%s/api/measures/search?projectKeys=%s&metricKeys=alert_status,bugs,reliability_rating,vulnerabilities,security_rating,code_smells,sqale_rating,duplicated_lines_density,coverage,ncloc,ncloc_language_distribution",
+
+	url := fmt.Sprintf(content.Measures_url,
 		serverUrl, projectKey)
 	req, _ := http.NewRequest("GET", url, nil)
 	if sonarToken != "" {
@@ -59,23 +61,68 @@ func dingtalkHandler(w http.ResponseWriter, r *http.Request) {
 	codeSmells := (measures[2].(map[string]interface{}))["value"].(string)
 	coverage := (measures[3].(map[string]interface{}))["value"].(string)
 	duplicatedLinesDensity := (measures[4].(map[string]interface{}))["value"].(string)
-	// ncloc := (measures[5].(map[string]interface{}))["value"].(string)
-	// nclocLanguageDistribution := (measures[6].(map[string]interface{}))["value"].(string)
-	// neliabilityRating := (measures[7].(map[string]interface{}))["value"].(string)
-	// securityRating := (measures[8].(map[string]interface{}))["value"].(string)
-	// sqaleRating := (measures[9].(map[string]interface{}))["value"].(string)
+
+	//ncloc := (measures[5].(map[string]interface{}))["value"].(string)
+	//nclocLanguageDistribution := (measures[6].(map[string]interface{}))["value"].(string)
+	//neliabilityRating := (measures[7].(map[string]interface{}))["value"].(string)
+	//securityRating := (measures[8].(map[string]interface{}))["value"].(string)
+	//sqaleRating := (measures[9].(map[string]interface{}))["value"].(string)
+
 	vulnerabilities := (measures[10].(map[string]interface{}))["value"].(string)
 
 	// 成功失败标志
 	var picUrl string
 	if alertStatus == "OK" {
-		picUrl = "http://s1.ax1x.com/2020/10/29/BGMeTe.png"
+		picUrl = content.OK_PNG_URL
 	} else {
-		picUrl = "http://s1.ax1x.com/2020/10/29/BGMZwD.png"
+		picUrl = content.FAIL_PNG_URL
 	}
-	// 发送钉钉消息
-	msgUrl := fmt.Sprintf("https://oapi.dingtalk.com/robot/send?access_token=%s", accessToken)
 
+	//alertStatus := (measures[0].(map[string]interface{}))["value"].(string)
+	//bugs := (measures[1].(map[string]interface{}))["value"].(string)
+	//codeSmells := (measures[2].(map[string]interface{}))["value"].(string)
+	//coverage := (measures[3].(map[string]interface{}))["value"].(string)
+	//duplicatedLinesDensity := (measures[4].(map[string]interface{}))["value"].(string)
+
+	//获取types数量 start--------------------------------------------------------------------------------------
+	issuesUrl := fmt.Sprintf(content.Issues_url,
+		serverUrl, projectKey)
+	issuesReq, _ := http.NewRequest("GET", issuesUrl, nil)
+	if sonarToken != "" {
+		issuesReq.SetBasicAuth(sonarToken, "")
+	}
+	issuesRsp, err := httpClient.Do(issuesReq)
+	if err != nil {
+		fmt.Fprintf(w, "获取issues失败: "+err.Error())
+		return
+	}
+	issuesObj := make(map[string]interface{})
+	if err := json.NewDecoder(issuesRsp.Body).Decode(&issuesObj); err != nil {
+		issuesRsp.Body.Close()
+		fmt.Fprintf(w, "解析issues失败: "+err.Error())
+		return
+	}
+	typeMap := make(map[string]float64)
+	facets := issuesObj["facets"].([]interface{})
+	fmt.Println("facets == {}", facets)
+	for _, facet := range facets {
+		serverStr := facet.(map[string]interface{})["property"].(string)
+		if "severities" == serverStr {
+			valueList := facet.(map[string]interface{})["values"].([]interface{})
+			for _, value := range valueList {
+				typeName := (value.(map[string]interface{}))["val"].(string)
+				typeCount := (value.(map[string]interface{}))["count"].(float64)
+				typeMap[typeName] = typeCount
+			}
+		}
+	}
+	for key, value := range typeMap {
+		fmt.Printf("%s =======> %f\n", key, value)
+	}
+	//获取types数量 end--------------------------------------------------------------------------------------
+
+	// 发送钉钉消息
+	msgUrl := fmt.Sprintf(content.Dingding_url, accessToken)
 	messageUrl := fmt.Sprintf("%s/dashboard?id=%s", serverUrl, projectKey)
 
 	link := make(map[string]string)
@@ -99,6 +146,10 @@ func dingtalkHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	fmt.Fprint(w, "消息推送成功")
+}
+
+func findTypes(w http.ResponseWriter, r *http.Request) {
+
 }
 
 func main() {
